@@ -2,16 +2,33 @@ provider "aws" {
   region = "eu-west-2"
 }
 
-variable "public_key_file" {
+locals {
+  wg_server = {
+    ami      = "ami-0aaa5410833273cfe"
+    ssh_user = "ubuntu"
+    port     = "51820"
+  }
+}
+
+variable "private_key_file" {
   type        = string
-  description = "Public key to use to ssh into wg_server"
-  default     = "~/.ssh/id_ed25519.pub"
+  description = "Private key to use to ssh into wg_server"
+  default     = "~/.ssh/id_ed25519"
+}
+
+data "tls_public_key" "wg_server_pubkey" {
+  private_key_openssh = file(var.private_key_file)
+}
+
+resource "aws_key_pair" "wg_server_key" {
+  key_name   = "wg_server_ec2"
+  public_key = data.tls_public_key.wg_server_pubkey.public_key_openssh
 }
 
 resource "aws_instance" "wg_server" {
   # https://eu-west-2.console.aws.amazon.com/ec2/home?region=eu-west-2#ImageDetails:imageId=ami-0aaa5410833273cfe
   # ubuntu 22.04
-  ami = "ami-0aaa5410833273cfe"
+  ami = local.wg_server.ami
 
   associate_public_ip_address = "true"
   instance_type               = "t2.micro"
@@ -32,11 +49,23 @@ resource "aws_instance" "wg_server" {
   tags = {
     Name = "wg-server"
   }
-}
 
-resource "aws_key_pair" "wg_server_key" {
-  key_name   = "wg_server_ec2"
-  public_key = file(var.public_key_file)
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get -y update",
+      "sudo apt-get -y install wireguard-tools mawk grep iproute2 qrencode",
+      "wget https://raw.githubusercontent.com/burghardt/easy-wg-quick/master/easy-wg-quick",
+      "chmod +x easy-wg-quick",
+      "mkdir -p wg-server",
+    ]
+
+    connection {
+      type        = "ssh"
+      host        = aws_instance.wg_server.public_ip
+      user        = local.wg_server.ssh_user
+      private_key = file(var.private_key_file)
+    }
+  }
 }
 
 resource "aws_security_group" "sg_for_wg_server" {
@@ -53,10 +82,10 @@ resource "aws_security_group" "sg_for_wg_server" {
   ingress {
     cidr_blocks = ["0.0.0.0/0"]
     description = "wireguard"
-    from_port   = "51820"
+    from_port   = local.wg_server.port
     protocol    = "udp"
     self        = "false"
-    to_port     = "51820"
+    to_port     = local.wg_server.port
   }
 
   ingress {
@@ -69,7 +98,17 @@ resource "aws_security_group" "sg_for_wg_server" {
   }
 }
 
-output "public_ip" {
+output "wg_server_host" {
   value       = aws_instance.wg_server.public_ip
-  description = "The public IP address of the wireguard server"
+  description = "Hostname (ip) of the wireguard server"
+}
+
+output "wg_server_user" {
+  value       = local.wg_server.ssh_user
+  description = "SSH user to connect to the wireguard server"
+}
+
+output "wg_server_port" {
+  value       = local.wg_server.port
+  description = "Port at which wireguard server is listening"
 }
