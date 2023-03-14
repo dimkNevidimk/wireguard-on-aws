@@ -2,6 +2,12 @@ provider "aws" {
   region = "eu-west-2"
 }
 
+variable "public_key_file" {
+  type        = string
+  description = "Public key to use to ssh into wg_server"
+  default     = "~/.ssh/id_ed25519.pub"
+}
+
 resource "aws_instance" "wg_server" {
   # https://eu-west-2.console.aws.amazon.com/ec2/home?region=eu-west-2#ImageDetails:imageId=ami-0aaa5410833273cfe
   # ubuntu 22.04
@@ -14,9 +20,7 @@ resource "aws_instance" "wg_server" {
     cpu_credits = "standard"
   }
 
-  # need to create manually at
-  # https://eu-west-2.console.aws.amazon.com/ec2/home?region=eu-west-2#KeyPairs:
-  key_name = "aws_ec2_wg_server"
+  key_name = aws_key_pair.wg_server_key.key_name
 
   root_block_device {
     volume_size = "8"
@@ -28,6 +32,11 @@ resource "aws_instance" "wg_server" {
   tags = {
     Name = "wg-server"
   }
+}
+
+resource "aws_key_pair" "wg_server_key" {
+  key_name   = "wg_server_ec2"
+  public_key = file(var.public_key_file)
 }
 
 resource "aws_security_group" "sg_for_wg_server" {
