@@ -20,7 +20,7 @@ data "tls_public_key" "wg_server_pubkey" {
 }
 
 resource "aws_key_pair" "wg_server_key" {
-  key_name   = "wg_server_ec2"
+  key_name   = "wg_server_ec2-${terraform.workspace}"
   public_key = data.tls_public_key.wg_server_pubkey.public_key_openssh
 }
 
@@ -46,13 +46,12 @@ resource "aws_instance" "wg_server" {
   vpc_security_group_ids = [aws_security_group.sg_for_wg_server.id]
 
   tags = {
-    Name = "wg-server"
+    Name = "wg-server-${terraform.workspace}"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo apt-get -y update",
-      "sudo apt-get -y install wireguard-tools mawk grep iproute2 qrencode",
+      "sudo apt-get update && sudo apt-get -y install wireguard-tools mawk grep iproute2 qrencode",
       "wget https://raw.githubusercontent.com/burghardt/easy-wg-quick/203e46ad49ffc7aedc54c9a66314060a54f74aef/easy-wg-quick",
       "chmod +x easy-wg-quick",
       "mkdir -p wg-server",
@@ -68,7 +67,7 @@ resource "aws_instance" "wg_server" {
 }
 
 resource "aws_security_group" "sg_for_wg_server" {
-  name = "security_group_for_wg_server"
+  name = "security_group_for_wg_server-${terraform.workspace}"
 
   egress {
     cidr_blocks = ["0.0.0.0/0"]
