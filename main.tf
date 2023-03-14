@@ -1,12 +1,11 @@
-provider "aws" {
-  region = "eu-west-2"
-}
+provider "aws" {}
 
 locals {
   wg_server = {
     ami      = "ami-0aaa5410833273cfe"
     ssh_user = "ubuntu"
     port     = "51820"
+    type     = "t2.micro"
   }
 }
 
@@ -31,7 +30,7 @@ resource "aws_instance" "wg_server" {
   ami = local.wg_server.ami
 
   associate_public_ip_address = "true"
-  instance_type               = "t2.micro"
+  instance_type               = local.wg_server.type
 
   credit_specification {
     cpu_credits = "standard"
