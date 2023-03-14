@@ -54,7 +54,7 @@ resource "aws_instance" "wg_server" {
     inline = [
       "sudo apt-get -y update",
       "sudo apt-get -y install wireguard-tools mawk grep iproute2 qrencode",
-      "wget https://raw.githubusercontent.com/burghardt/easy-wg-quick/master/easy-wg-quick",
+      "wget https://raw.githubusercontent.com/burghardt/easy-wg-quick/203e46ad49ffc7aedc54c9a66314060a54f74aef/easy-wg-quick",
       "chmod +x easy-wg-quick",
       "mkdir -p wg-server",
     ]
